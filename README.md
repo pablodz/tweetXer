@@ -22,9 +22,21 @@ German: [youtube.com/watch?v=HmQ7_ZgVNxg](https://www.youtube.com/watch?v=HmQ7_Z
 3.  Paste the [whole script](https://raw.githubusercontent.com/lucahammer/tweetXer/main/tweetXer.js) into the console and press enter
 4.  A light blue bar appears at the top of the window
 5.  Use the file picker to select your tweet-headers.js or tweets.js file
-6.  Wait for all your Tweets to vanish (about 5-10 Tweets per second)
+6.  Wait for all your Tweets to vanish. The panel shows progress, failures, speed and the estimated time left.
 
-If the process is interrupted at any time, you can use the advanced options to enter how many Tweets have been deleted in the previous run to not start at zero again. The script will try to automatically detect if it was run before by calculating the difference between Tweets in the file and the Tweet count on the profile. If there is a difference it will try to automatically skip that amount (+5% buffer). If you want it to start from the beginning, open 'Advanced options' and enter 1 instead of 0. It will then skip exactly one Tweet and not try to calculate an amount.
+You can select several files at once (e.g. `tweet-headers.js` and `tweet-headers-part1.js`) or drop them on the panel. The panel can be minimized with the `–` button.
+
+If the process is interrupted at any time, you can use the advanced options to enter how many Tweets have been deleted in the previous run to not start at zero again. When you press **Stop**, the panel tells you which number to enter. The script will try to automatically detect if it was run before by calculating the difference between Tweets in the file and the Tweet count on the profile. If there is a difference it will try to automatically skip that amount (+5% buffer). If you want it to start from the beginning, open 'Advanced options' and enter 0. It will then not skip anything.
+
+Requests that fail permanently (e.g. Tweets that no longer exist) are counted as failed. When the run is finished you can retry them or download their IDs.
+
+## Advanced options
+
+- **Items to skip**: how many items of the file to skip. Leave it empty for the automatic calculation (Tweets only).
+- **Parallel requests**: how many Tweets are deleted at the same time (1–10, default 3). Higher is faster but hits rate limits sooner. Likes and DMs are always deleted one at a time because of their strict rate limits.
+- **Delete DMs one by one**: delete each message instead of whole conversations.
+
+Rate limits are handled automatically: the script pauses until X lifts the limit and then continues.
 
 # Alternative to copy & paste: userscript
 
@@ -68,7 +80,7 @@ If for some reason you can't use your data export or it missed some Tweets, you 
 
 # Bonus: Delete Direct Messages
 
-To delete DMs, you select the direct-message-header.js file instead of the tweet-headers.js file. Once it's done, reload the page, paste TweetXer into the console again and select the direct-message-group-headers.js file to remove message groups. If the process gets interrupted for whatever reason, you can enter how many messages where deleted before under "Advanced options" before selcting the file.
+To delete DMs, you select the direct-message-header.js file instead of the tweet-headers.js file. Once it's done, reload the page, paste TweetXer into the console again and select the direct-message-group-headers.js file to remove message groups. If the process gets interrupted for whatever reason, you can enter how many messages were deleted before under "Advanced options" before selecting the file. To delete each message individually instead of whole conversations, enable "Delete DMs one by one".
 
 [According to former engineers](https://bsky.app/profile/triketora.com/post/3lcbmqzo4uk25), DMs are removed from the server if all sides remove them from their inbox.
 
@@ -96,11 +108,11 @@ In most cases those are Retweets from Tweets from accounts that got deactivated 
 
 - Likes aren't removed.
 
-Only the last few hundred can be be removed. Even by hand. There is nothing you can do other than deleting your whole account. Or reliking Tweets to unlike them afterwards which will probably get your account locked for spamming.
+Only the last few hundred can be removed. Even by hand. There is nothing you can do other than deleting your whole account. Or reliking Tweets to unlike them afterwards which will probably get your account locked for spamming.
 
 - Browser crashes
 
-  This happens more often with Chrome and Chrome-based browsers. Especially when removing more than 15 k Tweets. Closing the browser console while it runs seems to reduce the crashes.
+  This happens more often with Chrome and Chrome-based browsers. Especially when removing more than 15 k Tweets. The script no longer keeps response objects in the console, which was the main source of memory growth. If it still happens, close the browser console while it runs and lower "Parallel requests".
 
 - It worked and you are thankful.
 
