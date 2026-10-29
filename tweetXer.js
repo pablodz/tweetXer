@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         TweetXer
 // @namespace    https://github.com/lucahammer/tweetXer/
-// @version      0.10.0
+// @version      0.10.1
 // @description  Delete all your Tweets for free.
 // @author       Luca,dbort,pReya,Micolithe,STrRedWolf
 // @license      NoHarm-draft
@@ -29,6 +29,9 @@
     const REQUEST_TIMEOUT = 15000
     const MAX_RETRIES = 4
     const MAX_LOG_LINES = 200
+    const MAX_DEBUG_LINES = 5000
+    // Text of the "Delete" item in the Tweet menu in common languages
+    const DELETE_WORDS = /^(delete|eliminar|borrar|apagar|excluir|löschen|supprimer|elimina|verwijderen|usuń|sil|удалить|видалити|削除|삭제|删除|刪除|hapus|xóa|ลบ|حذف|מחק)/i
     const RENDER_INTERVAL = 250
 
     const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
@@ -177,7 +180,7 @@
     `
 
     let TweetsXer = {
-        version: '0.10.0',
+        version: '0.10.1',
         TweetCount: null,
         tIds: [],
         failedIds: [],
@@ -205,6 +208,7 @@
         renderTimer: null,
         ui: {},
         tweetCountReady: null,
+        logLines: [],
 
         async init() {
             this.baseUrl = `https://${window.location.hostname}`
@@ -216,6 +220,9 @@
                 return
             }
             this.username = this.getUsername()
+            this.debug(`TweetXer ${this.version} on ${location.href}`)
+            this.debug(`Browser: ${navigator.userAgent}; language: ${document.documentElement.lang || navigator.language}; viewport: ${window.innerWidth}x${window.innerHeight}`)
+            this.debug(`Username: ${this.username || '(unknown)'}`)
             this.tweetCountReady = this.getTweetCount()
             await this.tweetCountReady
             if (!this.running) {
@@ -323,6 +330,10 @@
                         <details id="logBox" hidden>
                             <summary>Activity log</summary>
                             <pre class="log" id="log"></pre>
+                            <div class="row">
+                                <button class="btn" id="copyLog" type="button">Copy full log</button>
+                                <button class="btn" id="downloadLog" type="button">Download log</button>
+                            </div>
                         </details>
                     </div>
                 </div>
@@ -378,6 +389,15 @@
                 ui.minimize.setAttribute('aria-label', ui.minimize.title)
             })
             ui.close.addEventListener('click', () => this.removeTweetXer())
+            root.getElementById('copyLog').addEventListener('click', (e) => this.copyLog(e.target))
+            root.getElementById('downloadLog').addEventListener('click', () => {
+                const url = URL.createObjectURL(new Blob([this.fullLog()], { type: 'text/plain' }))
+                const a = document.createElement('a')
+                a.href = url
+                a.download = `tweetxer-log-${Date.now()}.txt`
+                a.click()
+                setTimeout(() => URL.revokeObjectURL(url), 10000)
+            })
             window.addEventListener('beforeunload', this.onBeforeUnload)
         },
 
@@ -400,8 +420,31 @@
             this.ui.info.className = `status ${kind}`
         },
 
+        // Detailed diagnostics: console and full log only, not shown in the panel
+        debug(text) {
+            console.log(`[TweetXer debug] ${text}`)
+            this.logLines.push(`${new Date().toISOString()} DEBUG ${text}`)
+            if (this.logLines.length > MAX_DEBUG_LINES) this.logLines.splice(0, this.logLines.length - MAX_DEBUG_LINES)
+        },
+
+        fullLog() {
+            return [`TweetXer ${this.version} log`, ...this.logLines].join('\n')
+        },
+
+        async copyLog(button) {
+            try {
+                await navigator.clipboard.writeText(this.fullLog())
+                button.textContent = 'Copied'
+            } catch (error) {
+                button.textContent = 'Copy failed, use Download'
+            }
+            setTimeout(() => { button.textContent = 'Copy full log' }, 2000)
+        },
+
         log(text) {
             console.log(`[TweetXer] ${text}`)
+            this.logLines.push(`${new Date().toISOString()} INFO ${text}`)
+            if (this.logLines.length > MAX_DEBUG_LINES) this.logLines.splice(0, this.logLines.length - MAX_DEBUG_LINES)
             const log = this.ui.log
             const time = new Date().toLocaleTimeString()
             log.append(`${time} ${text}\n`)
@@ -1007,6 +1050,7 @@
         async loadMore(find, rounds = 6) {
             for (let round = 1; round <= rounds && !this.stopRequested; round++) {
                 this.updateInfo(`Loading more… (attempt ${round} of ${rounds})`)
+                this.debug(`Load more round ${round}/${rounds}: path ${location.pathname}, ${document.querySelectorAll('[data-testid="tweet"]').length} Tweets and ${document.querySelectorAll('[data-testid="cellInnerDiv"]').length} cells in the page, scrollY ${Math.round(window.scrollY)} of ${document.documentElement.scrollHeight}`)
                 const retry = this.findRetryButton()
                 if (retry) {
                     this.log('The timeline failed to load. Retrying.')
@@ -1032,10 +1076,16 @@
                 .find((a) => a.getAttribute('href')?.toLowerCase() === href)
             let tab = find()
             if (!tab) {
+                this.debug(`Tab ${href} not found on ${location.pathname}; opening the profile`)
                 document.querySelector('[data-testid="AppTabBar_Profile_Link"]')?.click()
                 tab = await this.waitFor(find, 10000)
             }
-            if (!tab) return false
+            if (!tab) {
+                const tabs = [...document.querySelectorAll('[data-testid="primaryColumn"] [role="tab"], [data-testid="ScrollSnap-List"] a')].map((a) => a.getAttribute('href'))
+                this.debug(`Tab ${href} still not found. Tabs in the page: ${tabs.join(', ') || '(none)'}`)
+                return false
+            }
+            this.debug(`Opening tab ${href}`)
             tab.click()
             window.scrollTo(0, 0)
             await sleep(2500)
@@ -1047,6 +1097,55 @@
             this.log('Reloading the timeline.')
             await this.openProfileTab(suffix === '' ? '/with_replies' : '')
             return this.openProfileTab(suffix)
+        },
+
+        describeTweet(tweet) {
+            const author = tweet.querySelector('[data-testid="User-Name"] a[href^="/"]')?.getAttribute('href') || '?'
+            const buttons = [...tweet.querySelectorAll('[data-testid]')].map((el) => el.dataset.testid)
+                .filter((id) => ['caret', 'unretweet', 'retweet', 'unlike', 'like', 'socialContext'].includes(id))
+            return `${this.tweetKey(tweet) || '(no link)'} by ${author} [${[...new Set(buttons)].join(',')}]`
+        },
+
+        // Visible menus and dialogs of X, for diagnostics
+        describeOverlays() {
+            const overlays = [...document.querySelectorAll('[role="menu"], [role="dialog"], [data-testid="sheetDialog"]')]
+            if (overlays.length === 0) return 'none'
+            return overlays.map((el) => `${el.getAttribute('role') || el.dataset.testid}: "${el.textContent.trim().replace(/\s+/g, ' ').slice(0, 120)}"`).join(' | ')
+        },
+
+        isDangerColor(item) {
+            return [item, ...item.querySelectorAll('span, div')].some((el) => {
+                const [r, g, b] = (getComputedStyle(el).color.match(/\d+/g) || []).map(Number)
+                return r > 200 && g < 90 && b < 90
+            })
+        },
+
+        // The "Delete" item of an open Tweet menu: by its text, or by its red color in other languages
+        findDeleteMenuItem() {
+            const items = [...document.querySelectorAll('[role="menuitem"]')]
+            this.debug(`Menu items: ${items.map((item) => `"${item.textContent.trim()}"`).join(', ') || '(none)'}`)
+            return items.find((item) => DELETE_WORDS.test(item.textContent.trim()))
+                || items.find((item) => this.isDangerColor(item))
+                || null
+        },
+
+        // Closes menus and dialogs X may have left open and returns to the expected tab
+        async recover(pass) {
+            this.debug(`Recovering. Path: ${location.pathname}. Open overlays: ${this.describeOverlays()}`)
+            for (let i = 0; i < 3 && document.querySelector('[role="menu"], [role="dialog"], [data-testid="sheetDialog"]'); i++) {
+                const cancel = document.querySelector('[data-testid="confirmationSheetCancel"], [data-testid="app-bar-close"]')
+                if (cancel) cancel.click()
+                const target = document.activeElement || document.body
+                target.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', code: 'Escape', keyCode: 27, bubbles: true }))
+                target.dispatchEvent(new KeyboardEvent('keyup', { key: 'Escape', code: 'Escape', keyCode: 27, bubbles: true }))
+                await sleep(500)
+            }
+            const expected = `/${this.username}${pass.tab}`.toLowerCase()
+            if (location.pathname.toLowerCase() !== expected) {
+                this.log(`Left the ${pass.name} tab (now on ${location.pathname}). Going back.`)
+                await this.openProfileTab(pass.tab)
+            }
+            this.debug(`After recovery. Path: ${location.pathname}. Open overlays: ${this.describeOverlays()}`)
         },
 
         // What to do with a Tweet in the current pass: 'delete', 'unretweet', 'unlike' or null to skip it
@@ -1077,18 +1176,27 @@
                 return true
             }
             const caret = tweet.querySelector('[data-testid="caret"]')
-            if (!caret) return false
-            caret.click()
-            const menuItem = await waitForElemToExist('[role="menuitem"]', 5000)
-            if (!menuItem) throw new Error('menu did not open')
-            if (menuItem.textContent.includes('@')) {
-                // Not our Tweet (the first item is "Follow/Unfollow @user")
-                caret.click()
+            if (!caret) {
+                this.debug('No menu button (caret) on this Tweet; skipping')
                 return false
             }
-            menuItem.click()
+            caret.click()
+            if (!await waitForElemToExist('[role="menuitem"]', 5000)) throw new Error('menu did not open')
+            // Let the whole menu render
+            await sleep(300)
+            const deleteItem = this.findDeleteMenuItem()
+            if (!deleteItem) {
+                // Not our Tweet, or X doesn't allow deleting it
+                this.debug('No "Delete" item in the menu; skipping this Tweet')
+                caret.click()
+                await sleep(300)
+                return false
+            }
+            this.debug(`Clicking menu item "${deleteItem.textContent.trim()}"`)
+            deleteItem.click()
             const confirm = await waitForElemToExist('[data-testid="confirmationSheetConfirm"]', 5000)
-            if (!confirm) throw new Error('delete confirmation did not appear')
+            if (!confirm) throw new Error(`delete confirmation did not appear (open: ${this.describeOverlays()})`)
+            this.debug(`Confirming "${confirm.textContent.trim()}"`)
             confirm.click()
             return true
         },
@@ -1113,6 +1221,7 @@
             const findNext = () => [...document.querySelectorAll('[data-testid="tweet"]')].find((tweet) => {
                 if (isHandled(tweet)) return false
                 if (this.tweetAction(tweet, pass)) return true
+                this.debug(`Skip: ${this.describeTweet(tweet)}`)
                 markHandled(tweet)
                 return false
             })
@@ -1127,7 +1236,10 @@
                         reloaded = true
                         tweet = findNext() || await this.loadMore(findNext, 3)
                     }
-                    if (!tweet) break
+                    if (!tweet) {
+                        this.debug(`Nothing more to do in the ${pass.name} tab. Path: ${location.pathname}. Retry button: ${Boolean(this.findRetryButton())}. Open overlays: ${this.describeOverlays()}`)
+                        break
+                    }
                 }
                 reloaded = false
                 this.renderProgress()
@@ -1138,6 +1250,7 @@
                 const action = this.tweetAction(tweet, pass)
                 markHandled(tweet)
                 if (!action) continue
+                this.debug(`${action}: ${this.describeTweet(tweet)}`)
 
                 try {
                     tweet.scrollIntoView({ block: 'center' })
@@ -1148,14 +1261,14 @@
                     }
                     consecutiveErrors = 0
                 } catch (error) {
-                    // Close a menu or dialog that may still be open
-                    document.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
                     this.failCount++
                     this.log(`Error: ${error.message}`)
+                    this.debug(`Failed on ${this.describeTweet(tweet)}. Stack: ${error.stack?.split('\n').slice(0, 3).join(' / ')}`)
+                    await this.recover(pass)
                     if (++consecutiveErrors >= 5) {
                         this.log('5 errors in a row. Stopping.')
                         this.stopRequested = true
-                        this.stopReason = 'Stopped after 5 errors in a row. You may be rate limited; try again later.'
+                        this.stopReason = 'Stopped after 5 errors in a row. Open "Activity log" and use "Copy full log" to report it.'
                     }
                 }
             }
@@ -1180,6 +1293,7 @@
             }
             if (types.has('likes')) passes.push({ name: 'Likes', tab: '/likes', likes: true })
 
+            this.debug(`Without file: ${[...types].join(', ')}. Username: ${this.username}. Profile count: ${this.TweetCount}`)
             const counts = { delete: 0, unretweet: 0, unlike: 0 }
             for (const pass of passes) {
                 if (this.stopRequested) break
@@ -1191,8 +1305,10 @@
                 types.has('reposts') && `${formatNumber(counts.unretweet)} reposts undone`,
                 types.has('likes') && `${formatNumber(counts.unlike)} likes removed`,
             ].filter(Boolean).join(', ')
+            this.debug(`Counts: ${JSON.stringify(counts)}, errors: ${this.failCount}`)
             if (this.stopReason) this.finish(`${this.stopReason} ${summary}.`, 'error')
             else if (this.stopRequested) this.finish(`Stopped. ${summary}.`, '')
+            else if (this.failCount > 0) this.finish(`Finished with ${formatNumber(this.failCount)} errors: ${summary}. Use "Copy full log" in the Activity log to report them.`, 'error')
             else this.finish(`Finished: ${summary}. Nothing more could be loaded; reload the page to confirm.`)
             this.updateTitle('TweetXer')
         },
