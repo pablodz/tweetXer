@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         TweetXer
 // @namespace    https://github.com/lucahammer/tweetXer/
-// @version      0.10.2
+// @version      0.10.3
 // @description  Delete all your Tweets for free.
 // @author       Luca,dbort,pReya,Micolithe,STrRedWolf
 // @license      NoHarm-draft
@@ -180,7 +180,7 @@
     `
 
     let TweetsXer = {
-        version: '0.10.2',
+        version: '0.10.3',
         TweetCount: null,
         tIds: [],
         failedIds: [],
@@ -1156,6 +1156,20 @@
             this.debug(`After recovery. Path: ${location.pathname}. Open overlays: ${this.describeOverlays()}`)
         },
 
+        // X lists some old reposts as "You reposted" but shows them as not reposted, so they can't be undone directly
+        isGhostRepost(tweet) {
+            if (this.isOwnTweet(tweet) !== false || !tweet.querySelector('[data-testid="retweet"]')) return false
+            const own = `/${this.username}`.toLowerCase()
+            return [...tweet.querySelectorAll('[data-testid="socialContext"]')]
+                .some((el) => el.closest('a')?.getAttribute('href')?.toLowerCase() === own)
+        },
+
+        // The same Tweet after X re-rendered its cell
+        findTweetAgain(tweet, key) {
+            if (tweet.isConnected) return tweet
+            return [...document.querySelectorAll('[data-testid="tweet"]')].find((t) => this.tweetKey(t) === key) || null
+        },
+
         // What to do with a Tweet in the current pass, in order: 'unlike', 'unretweet' and/or 'delete'
         tweetActions(tweet, pass) {
             const liked = Boolean(tweet.querySelector('[data-testid="unlike"]'))
@@ -1168,7 +1182,10 @@
                 // Replies are only deleted in the replies pass, and only when they were selected
                 else if (pass.posts) main = this.isReply(tweet) ? null : 'delete'
             }
-            if (!main && pass.reposts && tweet.querySelector('[data-testid="unretweet"]')) main = 'unretweet'
+            if (!main && pass.reposts) {
+                if (tweet.querySelector('[data-testid="unretweet"]')) main = 'unretweet'
+                else if (this.isGhostRepost(tweet)) main = 'ghostRepost'
+            }
 
             const actions = []
             // Unlike first: undoing a repost can remove the Tweet from the Reposts tab.
@@ -1185,6 +1202,22 @@
                 button.click()
                 if (!await this.waitFor(() => tweet.querySelector('[data-testid="like"]') || !tweet.isConnected, 5000)) throw new Error('unlike did not work')
                 return true
+            }
+            if (action === 'ghostRepost') {
+                // Repost it again so X knows about it, then undo it
+                const key = this.tweetKey(tweet)
+                this.debug('Ghost repost: reposting it again to be able to undo it')
+                tweet.querySelector('[data-testid="retweet"]').click()
+                const repost = await waitForElemToExist('[data-testid="retweetConfirm"]', 5000)
+                if (!repost) throw new Error(`repost item did not appear (open: ${this.describeOverlays()})`)
+                this.debug(`Clicking "${repost.textContent.trim()}"`)
+                repost.click()
+                const reposted = await this.waitFor(() => this.findTweetAgain(tweet, key)?.querySelector('[data-testid="unretweet"]'), 5000)
+                if (!reposted) throw new Error('the repost did not register')
+                await sleep(1000)
+                const again = this.findTweetAgain(tweet, key)
+                if (!again) throw new Error('the Tweet disappeared after reposting it')
+                return this.performAction(again, 'unretweet')
             }
             if (action === 'unretweet') {
                 const button = tweet.querySelector('[data-testid="unretweet"]')
@@ -1331,7 +1364,7 @@
             if (unlike) passes.push({ name: 'Likes', tab: '/likes', navigate: true, likes: true })
 
             this.debug(`Without file: ${[...types].join(', ')}. Username: ${this.username}. Profile count: ${this.TweetCount}`)
-            const counts = { delete: 0, unretweet: 0, unlike: 0 }
+            const counts = { delete: 0, unretweet: 0, ghostRepost: 0, unlike: 0 }
             for (const pass of passes) {
                 if (this.stopRequested) break
                 await this.clearTimeline(pass, counts)
@@ -1339,7 +1372,7 @@
 
             const summary = [
                 (types.has('posts') || types.has('replies')) && `${formatNumber(counts.delete)} Tweets deleted`,
-                types.has('reposts') && `${formatNumber(counts.unretweet)} reposts undone`,
+                types.has('reposts') && `${formatNumber(counts.unretweet + counts.ghostRepost)} reposts undone${counts.ghostRepost ? ` (${formatNumber(counts.ghostRepost)} ghost)` : ''}`,
                 types.has('likes') && `${formatNumber(counts.unlike)} likes removed`,
             ].filter(Boolean).join(', ')
             this.debug(`Counts: ${JSON.stringify(counts)}, errors: ${this.failCount}`)
