@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         TweetXer
 // @namespace    https://github.com/lucahammer/tweetXer/
-// @version      0.10.1
+// @version      0.10.2
 // @description  Delete all your Tweets for free.
 // @author       Luca,dbort,pReya,Micolithe,STrRedWolf
 // @license      NoHarm-draft
@@ -180,7 +180,7 @@
     `
 
     let TweetsXer = {
-        version: '0.10.1',
+        version: '0.10.2',
         TweetCount: null,
         tIds: [],
         failedIds: [],
@@ -1069,34 +1069,42 @@
             return null
         },
 
-        // Opens a tab of the own profile: '' (Posts), '/with_replies' or '/likes'
-        async openProfileTab(suffix) {
+        // Opens a tab of the own profile: '' (Posts), '/with_replies', '/reposts' or '/likes'.
+        // With navigate, a route without a tab (X removed the Likes tab) is opened through the router.
+        async openProfileTab(suffix, { navigate = false } = {}) {
             const href = `/${this.username}${suffix}`.toLowerCase()
-            const find = () => [...document.querySelectorAll('[data-testid="primaryColumn"] [role="tab"], [data-testid="ScrollSnap-List"] a')]
-                .find((a) => a.getAttribute('href')?.toLowerCase() === href)
+            const allTabs = () => [...document.querySelectorAll('[data-testid="primaryColumn"] [role="tab"], [data-testid="ScrollSnap-List"] a')]
+            const find = () => allTabs().find((a) => a.getAttribute('href')?.toLowerCase() === href)
             let tab = find()
-            if (!tab) {
-                this.debug(`Tab ${href} not found on ${location.pathname}; opening the profile`)
+            if (!tab && !allTabs().length) {
+                this.debug(`No profile tabs on ${location.pathname}; opening the profile`)
                 document.querySelector('[data-testid="AppTabBar_Profile_Link"]')?.click()
-                tab = await this.waitFor(find, 10000)
+                await this.waitFor(() => allTabs().length > 0, 10000)
+                tab = find()
             }
-            if (!tab) {
-                const tabs = [...document.querySelectorAll('[data-testid="primaryColumn"] [role="tab"], [data-testid="ScrollSnap-List"] a')].map((a) => a.getAttribute('href'))
-                this.debug(`Tab ${href} still not found. Tabs in the page: ${tabs.join(', ') || '(none)'}`)
-                return false
+            if (tab) {
+                this.debug(`Opening tab ${href}`)
+                tab.click()
+            } else {
+                this.debug(`Tab ${href} not found. Tabs in the page: ${allTabs().map((a) => a.getAttribute('href')).join(', ') || '(none)'}`)
+                if (!navigate) return false
+                // X's router follows history changes, so this opens the page without reloading it
+                this.debug(`Navigating to /${this.username}${suffix} without a tab`)
+                history.pushState({}, '', `/${this.username}${suffix}`)
+                window.dispatchEvent(new PopStateEvent('popstate', { state: {} }))
             }
-            this.debug(`Opening tab ${href}`)
-            tab.click()
             window.scrollTo(0, 0)
             await sleep(2500)
-            return true
+            const opened = location.pathname.toLowerCase() === href
+            this.debug(`Now on ${location.pathname} (${opened ? 'ok' : 'unexpected'}); ${document.querySelectorAll('[data-testid="tweet"]').length} Tweets in the page`)
+            return opened || Boolean(tab)
         },
 
         // Switching to another tab and back makes X fetch the timeline again
-        async reloadTimeline(suffix) {
+        async reloadTimeline(pass) {
             this.log('Reloading the timeline.')
-            await this.openProfileTab(suffix === '' ? '/with_replies' : '')
-            return this.openProfileTab(suffix)
+            await this.openProfileTab(pass.activeTab === '' ? '/with_replies' : '')
+            return this.openProfileTab(pass.activeTab, { navigate: pass.navigate })
         },
 
         describeTweet(tweet) {
@@ -1140,38 +1148,51 @@
                 target.dispatchEvent(new KeyboardEvent('keyup', { key: 'Escape', code: 'Escape', keyCode: 27, bubbles: true }))
                 await sleep(500)
             }
-            const expected = `/${this.username}${pass.tab}`.toLowerCase()
+            const expected = `/${this.username}${pass.activeTab}`.toLowerCase()
             if (location.pathname.toLowerCase() !== expected) {
                 this.log(`Left the ${pass.name} tab (now on ${location.pathname}). Going back.`)
-                await this.openProfileTab(pass.tab)
+                await this.openProfileTab(pass.activeTab, { navigate: pass.navigate })
             }
             this.debug(`After recovery. Path: ${location.pathname}. Open overlays: ${this.describeOverlays()}`)
         },
 
-        // What to do with a Tweet in the current pass: 'delete', 'unretweet', 'unlike' or null to skip it
-        tweetAction(tweet, pass) {
-            if (pass.likes) return tweet.querySelector('[data-testid="unlike"]') ? 'unlike' : null
-            const own = this.isOwnTweet(tweet)
-            if (own !== false) {
-                if (pass.posts && pass.replies) return 'delete'
-                if (pass.replies) return this.isReply(tweet) ? 'delete' : null
+        // What to do with a Tweet in the current pass, in order: 'unlike', 'unretweet' and/or 'delete'
+        tweetActions(tweet, pass) {
+            const liked = Boolean(tweet.querySelector('[data-testid="unlike"]'))
+            if (pass.likes) return liked ? ['unlike'] : []
+
+            let main = null
+            if (this.isOwnTweet(tweet) !== false) {
+                if (pass.posts && pass.replies) main = 'delete'
+                else if (pass.replies) main = this.isReply(tweet) ? 'delete' : null
                 // Replies are only deleted in the replies pass, and only when they were selected
-                if (pass.posts) return this.isReply(tweet) ? null : 'delete'
+                else if (pass.posts) main = this.isReply(tweet) ? null : 'delete'
             }
-            if (pass.reposts && tweet.querySelector('[data-testid="unretweet"]')) return 'unretweet'
-            return null
+            if (!main && pass.reposts && tweet.querySelector('[data-testid="unretweet"]')) main = 'unretweet'
+
+            const actions = []
+            // Unlike first: undoing a repost can remove the Tweet from the Reposts tab.
+            // A deleted Tweet takes its like with it.
+            if (pass.unlike && liked && main !== 'delete') actions.push('unlike')
+            if (main) actions.push(main)
+            return actions
         },
 
         async performAction(tweet, action) {
             if (action === 'unlike') {
-                tweet.querySelector('[data-testid="unlike"]').click()
+                const button = tweet.querySelector('[data-testid="unlike"]')
+                if (!button) return false
+                button.click()
                 if (!await this.waitFor(() => tweet.querySelector('[data-testid="like"]') || !tweet.isConnected, 5000)) throw new Error('unlike did not work')
                 return true
             }
             if (action === 'unretweet') {
-                tweet.querySelector('[data-testid="unretweet"]').click()
+                const button = tweet.querySelector('[data-testid="unretweet"]')
+                if (!button) return false
+                button.click()
                 const confirm = await waitForElemToExist('[data-testid="unretweetConfirm"]', 5000)
-                if (!confirm) throw new Error('undo repost confirmation did not appear')
+                if (!confirm) throw new Error(`undo repost item did not appear (open: ${this.describeOverlays()})`)
+                this.debug(`Clicking "${confirm.textContent.trim()}"`)
                 confirm.click()
                 return true
             }
@@ -1201,9 +1222,16 @@
             return true
         },
 
-        // Goes through one profile tab and deletes everything selected for it
+        // Goes through one profile tab and does everything selected for it
         async clearTimeline(pass, counts) {
-            if (!await this.openProfileTab(pass.tab)) {
+            pass.activeTab = pass.tab
+            let opened = await this.openProfileTab(pass.tab, { navigate: pass.navigate })
+            if (!opened && pass.fallbackTab !== undefined) {
+                this.log(`There is no ${pass.name} tab; looking in ${pass.fallbackName} instead.`)
+                pass.activeTab = pass.fallbackTab
+                opened = await this.openProfileTab(pass.fallbackTab)
+            }
+            if (!opened) {
                 this.log(`Couldn't open the ${pass.name} tab of your profile.`)
                 return
             }
@@ -1220,7 +1248,7 @@
             const isHandled = (tweet) => handledElements.has(tweet) || handledKeys.has(this.tweetKey(tweet))
             const findNext = () => [...document.querySelectorAll('[data-testid="tweet"]')].find((tweet) => {
                 if (isHandled(tweet)) return false
-                if (this.tweetAction(tweet, pass)) return true
+                if (this.tweetActions(tweet, pass).length > 0) return true
                 this.debug(`Skip: ${this.describeTweet(tweet)}`)
                 markHandled(tweet)
                 return false
@@ -1232,7 +1260,7 @@
                 let tweet = findNext()
                 if (!tweet) {
                     tweet = await this.loadMore(findNext)
-                    if (!tweet && !reloaded && await this.reloadTimeline(pass.tab)) {
+                    if (!tweet && !reloaded && await this.reloadTimeline(pass)) {
                         reloaded = true
                         tweet = findNext() || await this.loadMore(findNext, 3)
                     }
@@ -1247,17 +1275,21 @@
                 // Give the Tweets a chance to load; afaik the limit is 50 requests per minute
                 await sleep(1200)
                 if (!tweet.isConnected) continue
-                const action = this.tweetAction(tweet, pass)
+                const actions = this.tweetActions(tweet, pass)
                 markHandled(tweet)
-                if (!action) continue
-                this.debug(`${action}: ${this.describeTweet(tweet)}`)
+                if (actions.length === 0) continue
+                this.debug(`${actions.join(' + ')}: ${this.describeTweet(tweet)}`)
 
                 try {
                     tweet.scrollIntoView({ block: 'center' })
-                    if (await this.performAction(tweet, action)) {
-                        counts[action]++
-                        this.dCount++
-                        this.updateProgressBar()
+                    for (const action of actions) {
+                        if (this.stopRequested || !tweet.isConnected) break
+                        if (await this.performAction(tweet, action)) {
+                            counts[action]++
+                            this.dCount++
+                            this.updateProgressBar()
+                        }
+                        if (actions.length > 1) await sleep(500)
                     }
                     consecutiveErrors = 0
                 } catch (error) {
@@ -1283,15 +1315,20 @@
             this.username = this.username || this.getUsername()
             this.startProgress(0)
 
+            // Likes are also removed from every Tweet we come across in the other tabs
+            const unlike = types.has('likes')
             const passes = []
-            if (types.has('posts') || types.has('reposts')) {
-                passes.push({ name: 'Posts', tab: '', posts: types.has('posts'), reposts: types.has('reposts') })
-            }
+            if (types.has('posts')) passes.push({ name: 'Posts', tab: '', posts: true, unlike })
             if (types.has('replies')) {
                 // Posts are already gone when they were selected too, so everything left that is ours is a reply
-                passes.push({ name: 'Replies', tab: '/with_replies', posts: types.has('posts'), replies: true, reposts: types.has('reposts') })
+                passes.push({ name: 'Replies', tab: '/with_replies', posts: types.has('posts'), replies: true, unlike })
             }
-            if (types.has('likes')) passes.push({ name: 'Likes', tab: '/likes', likes: true })
+            if (types.has('reposts')) {
+                // Older layouts show reposts in the Posts tab
+                passes.push({ name: 'Reposts', tab: '/reposts', fallbackTab: '', fallbackName: 'Posts', reposts: true, unlike })
+            }
+            // X removed the Likes tab from profiles, but the page still exists
+            if (unlike) passes.push({ name: 'Likes', tab: '/likes', navigate: true, likes: true })
 
             this.debug(`Without file: ${[...types].join(', ')}. Username: ${this.username}. Profile count: ${this.TweetCount}`)
             const counts = { delete: 0, unretweet: 0, unlike: 0 }

@@ -80,8 +80,8 @@ If for some reason you can't use your data export or it missed some Tweets, open
 
 - **Posts**: your own posts (Posts tab of your profile)
 - **Replies**: your replies (Replies tab). If Posts is not selected, only Tweets that look like replies are deleted (they show "Replying to" or the parent Tweet of someone else above them).
-- **Reposts**: undoes your reposts
-- **Likes**: removes your likes (Likes tab)
+- **Reposts**: undoes your reposts (Reposts tab, or the Posts tab on older layouts)
+- **Likes**: removes your likes. X removed the Likes tab, so the script opens your likes page directly and also removes the likes of every Tweet it comes across in the other tabs (e.g. the like on each repost).
 
 Be warned, it is slow because it has to load the Tweets on your profile first and there are various request limits for that. When X stops loading the timeline, the script scrolls again, clicks "Retry" and reloads the tab before it gives up.
 
