@@ -1260,7 +1260,7 @@
                 let tweet = findNext()
                 if (!tweet) {
                     tweet = await this.loadMore(findNext)
-                    if (!tweet && !reloaded && await this.reloadTimeline(pass)) {
+                    if (!tweet && !reloaded && !this.stopRequested && await this.reloadTimeline(pass)) {
                         reloaded = true
                         tweet = findNext() || await this.loadMore(findNext, 3)
                     }
