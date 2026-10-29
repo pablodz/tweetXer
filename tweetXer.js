@@ -96,80 +96,84 @@
         :host { all: initial; }
         .panel {
             --bg: #ffffff; --fg: #0f1419; --muted: #536471; --border: #cfd9de;
-            --accent: #1d9bf0; --accent-fg: #ffffff; --danger: #f4212e; --ok: #00ba7c;
-            --field: #f7f9f9; --track: #eff3f4;
+            --accent: #1d9bf0; --danger: #f4212e; --ok: #00ba7c; --field: #f7f9f9; --track: #eff3f4;
             position: fixed; top: 12px; right: 12px; z-index: 2147483647;
-            width: 380px; max-width: calc(100vw - 24px); max-height: calc(100vh - 24px);
+            width: 340px; max-width: calc(100vw - 24px); max-height: calc(100vh - 24px);
             display: flex; flex-direction: column; box-sizing: border-box;
             background: var(--bg); color: var(--fg); border: 1px solid var(--border); border-radius: 16px;
             box-shadow: 0 8px 28px rgba(0, 0, 0, .18);
             font: 14px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
         }
         @media (prefers-color-scheme: dark) {
-            .panel {
-                --bg: #15202b; --fg: #e7e9ea; --muted: #8b98a5; --border: #38444d;
-                --field: #192734; --track: #253341; --accent-fg: #ffffff;
-            }
+            .panel { --bg: #15202b; --fg: #e7e9ea; --muted: #8b98a5; --border: #38444d; --field: #192734; --track: #253341; }
         }
         @media (max-width: 500px) {
             .panel { top: auto; bottom: 8px; right: 8px; left: 8px; width: auto; max-width: none; max-height: 70vh; }
         }
         * { box-sizing: border-box; }
-        header { display: flex; align-items: center; gap: 8px; padding: 12px 14px; border-bottom: 1px solid var(--border); }
-        header h2 { flex: 1; margin: 0; font-size: 16px; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-        header small { color: var(--muted); font-weight: 400; font-size: 12px; margin-left: 4px; }
-        .icon { border: 0; background: transparent; color: var(--muted); cursor: pointer; width: 28px; height: 28px; border-radius: 50%; font-size: 16px; line-height: 1; }
+        [hidden] { display: none !important; }
+        header { display: flex; align-items: center; gap: 4px; padding: 10px 10px 10px 14px; }
+        header h2 { flex: 1; margin: 0; font-size: 15px; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        header small { color: var(--muted); font-weight: 400; font-size: 11px; margin-left: 6px; }
+        .icon { border: 0; background: transparent; color: var(--muted); cursor: pointer; width: 28px; height: 28px; border-radius: 50%; font-size: 15px; line-height: 1; }
         .icon:hover { background: var(--track); color: var(--fg); }
-        .body { padding: 12px 14px 14px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; }
+        .body { padding: 0 14px 14px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; }
         .panel.minimized .body { display: none; }
-        .panel.minimized header { border-bottom: 0; }
-        .status { margin: 0; color: var(--fg); word-break: break-word; }
+        .status { margin: 0; font-size: 13px; color: var(--muted); word-break: break-word; }
         .status.error { color: var(--danger); }
         .status.success { color: var(--ok); }
+        .tabs { display: grid; grid-template-columns: 1fr 1fr; padding: 3px; gap: 3px; background: var(--track); border-radius: 999px; }
+        .tabs button { font: inherit; font-size: 13px; font-weight: 700; border: 0; border-radius: 999px; padding: 6px; cursor: pointer; background: transparent; color: var(--muted); }
+        .tabs button[aria-selected="true"] { background: var(--bg); color: var(--fg); box-shadow: 0 1px 3px rgba(0, 0, 0, .15); }
+        .pane { display: flex; flex-direction: column; gap: 10px; }
         .drop {
-            display: flex; flex-direction: column; align-items: center; gap: 4px; text-align: center;
-            padding: 16px; border: 2px dashed var(--border); border-radius: 12px; cursor: pointer; background: var(--field);
+            position: relative; display: flex; flex-direction: column; align-items: center; gap: 2px; text-align: center;
+            padding: 14px; border: 2px dashed var(--border); border-radius: 12px; cursor: pointer; background: var(--field);
         }
         .drop:hover, .drop.over { border-color: var(--accent); }
         .drop strong { color: var(--accent); }
-        .drop span { color: var(--muted); font-size: 12px; }
+        .drop span, .hint { color: var(--muted); font-size: 12px; margin: 0; }
         .drop input { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
-        .progress { display: flex; flex-direction: column; gap: 6px; }
-        .bar { height: 8px; border-radius: 4px; background: var(--track); overflow: hidden; }
+        .chips { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+        .chips label {
+            display: flex; align-items: center; gap: 8px; padding: 8px 10px; cursor: pointer;
+            border: 1px solid var(--border); border-radius: 10px; font-weight: 600;
+        }
+        .chips label:has(input:checked) { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, transparent); }
+        input[type=checkbox] { accent-color: var(--accent); width: 16px; height: 16px; margin: 0; }
+        .bar { height: 6px; border-radius: 3px; background: var(--track); overflow: hidden; }
         .bar > div { height: 100%; width: 0; background: var(--accent); transition: width .25s linear; }
-        .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; }
+        .bar.indeterminate > div { width: 30%; animation: slide 1.2s ease-in-out infinite; }
+        @keyframes slide { from { transform: translateX(-100%); } to { transform: translateX(340%); } }
+        .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; margin-top: 6px; }
         .stats div { display: flex; flex-direction: column; }
         .stats b { font-size: 15px; font-variant-numeric: tabular-nums; }
-        .stats span { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .03em; }
-        .row { display: flex; gap: 8px; flex-wrap: wrap; }
+        .stats span { color: var(--muted); font-size: 11px; }
+        .row { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+        .row:not(:has(> :not([hidden]))) { display: none; }
         button.btn {
-            font: inherit; font-weight: 700; cursor: pointer; border-radius: 999px; padding: 7px 14px;
+            font: inherit; font-size: 13px; font-weight: 700; cursor: pointer; border-radius: 999px; padding: 6px 14px;
             border: 1px solid var(--border); background: transparent; color: var(--fg);
         }
         button.btn:hover:not(:disabled) { background: var(--track); }
-        button.btn:disabled { opacity: .5; cursor: not-allowed; }
+        button.btn:disabled { opacity: .45; cursor: not-allowed; }
         button.btn.primary { background: var(--fg); color: var(--bg); border-color: var(--fg); }
+        button.btn.wide { width: 100%; padding: 9px 14px; }
         button.btn.danger { color: var(--danger); border-color: var(--danger); }
-        a.btn { font-weight: 700; color: var(--accent); text-decoration: none; }
-        a.btn:hover { text-decoration: underline; }
-        details { border-top: 1px solid var(--border); padding-top: 10px; }
-        summary { cursor: pointer; font-weight: 700; color: var(--muted); }
-        .section { margin-top: 12px; display: flex; flex-direction: column; gap: 6px; }
-        .section p { margin: 0; color: var(--muted); font-size: 13px; }
-        .section ul { margin: 0; padding-left: 18px; color: var(--muted); font-size: 13px; }
-        .section h3 { margin: 0; font-size: 14px; }
-        label { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 13px; }
+        a.btn { font-size: 13px; font-weight: 700; color: var(--accent); text-decoration: none; }
+        details { border-top: 1px solid var(--border); padding-top: 8px; }
+        summary { cursor: pointer; font-size: 13px; font-weight: 700; color: var(--muted); }
+        .options { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
+        .options label { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 13px; }
         input[type=number] {
-            width: 100px; font: inherit; color: var(--fg); background: var(--field);
+            width: 80px; font: inherit; font-size: 13px; color: var(--fg); background: var(--field);
             border: 1px solid var(--border); border-radius: 8px; padding: 4px 8px;
         }
-        input[type=number]:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+        input:focus-visible, button:focus-visible, summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
         .log {
-            margin: 0; max-height: 140px; overflow-y: auto; font: 11px/1.45 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+            margin: 8px 0 0; max-height: 140px; overflow-y: auto; font: 11px/1.45 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
             color: var(--muted); background: var(--field); border-radius: 8px; padding: 8px; white-space: pre-wrap; word-break: break-all;
         }
-        .log:empty { display: none; }
-        [hidden] { display: none !important; }
     `
 
     let TweetsXer = {
@@ -215,7 +219,7 @@
             this.tweetCountReady = this.getTweetCount()
             await this.tweetCountReady
             if (!this.running) {
-                this.updateInfo('Select your tweet-headers.js (or like.js / direct-message-headers.js) from your data export to start.')
+                this.updateInfo('Choose a file from your data export, or delete without file.')
             }
         },
 
@@ -267,64 +271,58 @@
                         <button class="icon" id="close" type="button" title="Remove TweetXer" aria-label="Remove TweetXer">✕</button>
                     </header>
                     <div class="body">
-                        <p class="status" id="info" role="status" aria-live="polite">Waiting for your profile to load…</p>
-                        <label class="drop" id="drop">
-                            <input type="file" id="file" accept=".js,.json" multiple />
-                            <strong>Choose export file</strong>
-                            <span>tweet-headers.js, tweets.js, like.js or direct-message(-group)-headers.js. Drop it here or click.</span>
-                        </label>
-                        <div class="progress" id="progress" hidden>
+                        <div class="tabs" role="tablist" id="tabs">
+                            <button type="button" role="tab" id="tabFile" aria-selected="true">With export file</button>
+                            <button type="button" role="tab" id="tabNoFile" aria-selected="false">Without file</button>
+                        </div>
+                        <div class="pane" id="paneFile" role="tabpanel">
+                            <label class="drop" id="drop">
+                                <input type="file" id="file" accept=".js,.json" multiple />
+                                <strong>Choose or drop a file</strong>
+                                <span>tweet-headers.js · like.js · direct-message-headers.js</span>
+                            </label>
+                        </div>
+                        <div class="pane" id="paneNoFile" role="tabpanel" hidden>
+                            <div class="chips" role="group" aria-label="What to delete">
+                                <label><input type="checkbox" name="what" value="posts" />Posts</label>
+                                <label><input type="checkbox" name="what" value="replies" />Replies</label>
+                                <label><input type="checkbox" name="what" value="reposts" />Reposts</label>
+                                <label><input type="checkbox" name="what" value="likes" />Likes</label>
+                            </div>
+                            <button class="btn primary wide" id="slowDelete" type="button" disabled>Select what to delete</button>
+                            <p class="hint">Deletes what loads on your profile. Slower than using the export file.</p>
+                        </div>
+                        <div id="progress" hidden>
                             <div class="bar" role="progressbar" aria-valuemin="0" id="bar"><div id="barFill"></div></div>
                             <div class="stats">
                                 <div><b id="statDone">0</b><span>Done</span></div>
                                 <div><b id="statFailed">0</b><span>Failed</span></div>
                                 <div><b id="statRate">–</b><span>Per min</span></div>
-                                <div><b id="statEta">–</b><span>ETA</span></div>
+                                <div><b id="statEta">–</b><span>Time left</span></div>
                             </div>
                         </div>
+                        <p class="status" id="info" role="status" aria-live="polite">Waiting for your profile to load…</p>
                         <div class="row">
                             <button class="btn danger" id="stop" type="button" hidden>Stop</button>
                             <button class="btn" id="retryFailed" type="button" hidden>Retry failed</button>
                             <button class="btn" id="downloadFailed" type="button" hidden>Download failed IDs</button>
+                            <a class="btn" id="bookmarksDownload" hidden download="twitter-bookmarks.json">Download bookmarks</a>
                         </div>
-                        <pre class="log" id="log"></pre>
                         <details id="advanced">
-                            <summary>Advanced options</summary>
-                            <div class="section">
-                                <label>Items to skip (set before choosing a file)
-                                    <input id="skipCount" type="number" min="0" step="1" placeholder="auto" />
-                                </label>
-                                <label>Parallel requests (Tweets only)
-                                    <input id="concurrency" type="number" min="1" max="10" step="1" value="3" />
-                                </label>
-                                <label>Delete DMs one by one instead of whole conversations
-                                    <input id="dmOneByOne" type="checkbox" />
-                                </label>
-                                <p>Supported files:</p>
-                                <ul>
-                                    <li>tweet-headers.js to delete Tweets (10,000 – 20,000 per hour)</li>
-                                    <li>direct-message-headers.js and direct-message-group-headers.js to delete DMs (around 800 per 15 minutes)</li>
-                                    <li>like.js to delete Likes (500 per 15 minutes; only works for the most recent few thousand)</li>
-                                </ul>
-                            </div>
-                            <div class="section">
-                                <h3>Export bookmarks</h3>
-                                <p>Bookmarks are not included in the official data export. You can export them here.</p>
+                            <summary>More options</summary>
+                            <div class="options">
+                                <label>Items to skip <input id="skipCount" type="number" min="0" step="1" placeholder="auto" /></label>
+                                <label>Parallel requests <input id="concurrency" type="number" min="1" max="10" step="1" value="3" /></label>
+                                <label>Delete DMs one by one <input id="dmOneByOne" type="checkbox" /></label>
                                 <div class="row">
                                     <button class="btn" id="exportBookmarks" type="button">Export bookmarks</button>
-                                    <a class="btn" id="bookmarksDownload" hidden download="twitter-bookmarks.json">Download bookmarks</a>
+                                    <button class="btn" id="unfollowEveryone" type="button">Unfollow everyone</button>
                                 </div>
                             </div>
-                            <div class="section">
-                                <h3>No tweet-headers.js?</h3>
-                                <p>Deletes the Tweets visible on your profile. Much slower and less reliable: at most about 4,000 Tweets per hour.</p>
-                                <div class="row"><button class="btn" id="slowDelete" type="button">Slow delete without file</button></div>
-                            </div>
-                            <div class="section">
-                                <h3>Unfollow everyone</h3>
-                                <p>It's time to let go. This will unfollow every account you follow.</p>
-                                <div class="row"><button class="btn" id="unfollowEveryone" type="button">Unfollow everyone</button></div>
-                            </div>
+                        </details>
+                        <details id="logBox" hidden>
+                            <summary>Activity log</summary>
+                            <pre class="log" id="log"></pre>
                         </details>
                     </div>
                 </div>
@@ -336,9 +334,12 @@
                 host, root,
                 panel: root.querySelector('.panel'),
                 title: $('title'), info: $('info'), drop: $('drop'), file: $('file'),
+                tabs: $('tabs'), tabFile: $('tabFile'), tabNoFile: $('tabNoFile'), paneFile: $('paneFile'), paneNoFile: $('paneNoFile'),
+                what: [...root.querySelectorAll('input[name="what"]')],
                 progress: $('progress'), bar: $('bar'), barFill: $('barFill'),
                 statDone: $('statDone'), statFailed: $('statFailed'), statRate: $('statRate'), statEta: $('statEta'),
-                stop: $('stop'), retryFailed: $('retryFailed'), downloadFailed: $('downloadFailed'), log: $('log'),
+                stop: $('stop'), retryFailed: $('retryFailed'), downloadFailed: $('downloadFailed'),
+                log: $('log'), logBox: $('logBox'),
                 advanced: $('advanced'), skipCount: $('skipCount'), concurrency: $('concurrency'), dmOneByOne: $('dmOneByOne'),
                 exportBookmarks: $('exportBookmarks'), bookmarksDownload: $('bookmarksDownload'),
                 slowDelete: $('slowDelete'), unfollowEveryone: $('unfollowEveryone'),
@@ -346,6 +347,16 @@
             }
 
             const ui = this.ui
+            const selectTab = (withFile) => {
+                ui.tabFile.setAttribute('aria-selected', String(withFile))
+                ui.tabNoFile.setAttribute('aria-selected', String(!withFile))
+                ui.paneFile.hidden = !withFile
+                ui.paneNoFile.hidden = withFile
+            }
+            ui.tabFile.addEventListener('click', () => selectTab(true))
+            ui.tabNoFile.addEventListener('click', () => selectTab(false))
+            for (const checkbox of ui.what) checkbox.addEventListener('change', () => this.updateSlowDeleteButton())
+
             ui.file.addEventListener('change', () => this.processFiles(ui.file.files))
             ui.drop.addEventListener('dragover', (e) => { e.preventDefault(); ui.drop.classList.add('over') })
             ui.drop.addEventListener('dragleave', () => ui.drop.classList.remove('over'))
@@ -370,6 +381,16 @@
             window.addEventListener('beforeunload', this.onBeforeUnload)
         },
 
+        getSelectedTypes() {
+            return new Set(this.ui.what.filter((checkbox) => checkbox.checked).map((checkbox) => checkbox.value))
+        },
+
+        updateSlowDeleteButton() {
+            const count = this.getSelectedTypes().size
+            this.ui.slowDelete.disabled = this.running || count === 0
+            this.ui.slowDelete.textContent = count === 0 ? 'Select what to delete' : 'Start deleting'
+        },
+
         updateTitle(text) {
             this.ui.title.firstChild.textContent = text
         },
@@ -386,23 +407,28 @@
             log.append(`${time} ${text}\n`)
             while (log.childNodes.length > MAX_LOG_LINES) log.firstChild.remove()
             log.scrollTop = log.scrollHeight
+            this.ui.logBox.hidden = false
         },
 
         setBusy(busy) {
             this.running = busy
             const ui = this.ui
-            ui.drop.hidden = busy
+            ui.tabs.hidden = busy
+            ui.paneFile.hidden = busy || ui.tabFile.getAttribute('aria-selected') !== 'true'
+            ui.paneNoFile.hidden = busy || ui.tabNoFile.getAttribute('aria-selected') !== 'true'
             ui.file.disabled = busy
             ui.stop.hidden = !busy
             ui.stop.disabled = false
-            for (const button of [ui.exportBookmarks, ui.slowDelete, ui.unfollowEveryone, ui.retryFailed]) {
+            for (const button of [ui.exportBookmarks, ui.unfollowEveryone, ui.retryFailed]) {
                 button.disabled = busy
             }
+            this.updateSlowDeleteButton()
             if (busy) {
                 this.stopRequested = false
                 this.stopReason = ''
                 ui.retryFailed.hidden = true
                 ui.downloadFailed.hidden = true
+                ui.advanced.open = false
             }
         },
 
@@ -437,8 +463,11 @@
         renderProgress() {
             const ui = this.ui
             const processed = this.dCount + this.failCount
-            const percent = this.total > 0 ? Math.min(100, (processed / this.total) * 100) : 0
-            ui.barFill.style.width = `${percent}%`
+            // The total is unknown (0) when deleting without a file
+            const known = this.total > 0
+            const percent = known ? Math.min(100, (processed / this.total) * 100) : 0
+            ui.bar.classList.toggle('indeterminate', !known && this.running)
+            ui.barFill.style.width = known ? `${percent}%` : ''
             ui.bar.setAttribute('aria-valuenow', String(processed))
             ui.statDone.textContent = formatNumber(this.dCount)
             ui.statFailed.textContent = formatNumber(this.failCount)
@@ -447,10 +476,12 @@
             const sessionCount = processed - this.startCount
             const rate = elapsed > 2 && sessionCount > 0 ? sessionCount / elapsed : 0
             ui.statRate.textContent = rate > 0 ? formatNumber(rate * 60) : '–'
-            ui.statEta.textContent = rate > 0 ? formatDuration((this.total - processed) / rate) : '–'
+            ui.statEta.textContent = known && rate > 0 ? formatDuration((this.total - processed) / rate) : '–'
 
             if (this.running && Date.now() >= this.ratelimitreset && !this.stopRequested) {
-                this.updateInfo(`${formatNumber(this.dCount)} of ${formatNumber(this.total)} done (${percent.toFixed(1)}%).`)
+                this.updateInfo(known
+                    ? `${formatNumber(this.dCount)} of ${formatNumber(this.total)} done (${percent.toFixed(1)}%).`
+                    : `${formatNumber(this.dCount)} done.`)
             }
         },
 
@@ -866,7 +897,6 @@
             if (link.href) URL.revokeObjectURL(link.href)
             link.href = URL.createObjectURL(new Blob([JSON.stringify(bookmarks)], { type: 'application/json' }))
             link.hidden = false
-            this.ui.advanced.open = true
             this.setBusy(false)
             this.updateTitle('TweetXer')
             this.updateInfo(`${formatNumber(bookmarks.length)} bookmarks exported. Use "Download bookmarks" to save them.`, 'success')
@@ -932,87 +962,238 @@
 
         // ---------- DOM based actions ----------
 
-        async slowDelete() {
-            if (this.running) return
-            this.setBusy(true)
-            this.updateTitle('Slow delete')
-            await this.tweetCountReady
-            this.startProgress(this.TweetCount || 0)
+        // X renders timelines as virtualized React lists. Never remove their nodes:
+        // the list stops loading new items when cells disappear from under it.
 
-            const repliesTab = document.querySelectorAll('[data-testid="ScrollSnap-List"] a')[1]
-            if (repliesTab) {
-                repliesTab.click()
-                await sleep(2000)
-            }
+        tweetKey(tweet) {
+            return tweet.querySelector('a[href*="/status/"] time')?.closest('a')?.getAttribute('href') || null
+        },
 
-            const more = '[data-testid="tweet"] [data-testid="caret"]'
-            let consecutiveErrors = 0
-            const maxConsecutiveErrors = 5
+        isOwnTweet(tweet) {
+            if (!this.username) return null
+            const author = tweet.querySelector('[data-testid="User-Name"] a[href^="/"]')?.getAttribute('href')
+            if (!author) return null
+            return author.toLowerCase() === `/${this.username.toLowerCase()}`
+        },
 
+        isReply(tweet) {
+            // "Replying to @user" is shown above the text when the parent Tweet isn't visible
+            const replyingTo = [...tweet.querySelectorAll('a[href^="/"]')].some((a) => a.textContent.trim().startsWith('@')
+                && !a.closest('[data-testid="tweetText"], [data-testid="User-Name"], [data-testid="quoteTweet"]'))
+            if (replyingTo) return true
+            // Otherwise the parent Tweet of someone else is shown in the cell right above
+            const previous = tweet.closest('[data-testid="cellInnerDiv"]')?.previousElementSibling?.querySelector('[data-testid="tweet"]')
+            return Boolean(previous) && this.isOwnTweet(previous) === false
+        },
+
+        // The button X shows when a timeline fails to load, e.g. because of rate limits
+        findRetryButton() {
+            return [...document.querySelectorAll('[data-testid="primaryColumn"] [role="button"], [data-testid="primaryColumn"] button')]
+                .find((button) => /^(retry|try again)$/i.test(button.textContent.trim()))
+        },
+
+        // Polls until find() returns something, or null after the timeout
+        async waitFor(find, timeout) {
+            const deadline = Date.now() + timeout
             while (!this.stopRequested) {
-                let caret = await waitForElemToExist(more, 5000)
-                if (!caret) {
-                    // Load more Tweets
-                    window.scrollTo(0, document.body.scrollHeight)
-                    caret = await waitForElemToExist(more, 8000)
-                    if (!caret) break
+                const found = find()
+                if (found || Date.now() >= deadline) return found || null
+                await sleep(300)
+            }
+            return null
+        },
+
+        // Scrolls to trigger infinite loading until find() returns something. Waits longer each round.
+        async loadMore(find, rounds = 6) {
+            for (let round = 1; round <= rounds && !this.stopRequested; round++) {
+                this.updateInfo(`Loading more… (attempt ${round} of ${rounds})`)
+                const retry = this.findRetryButton()
+                if (retry) {
+                    this.log('The timeline failed to load. Retrying.')
+                    retry.click()
                 }
+                // Scroll up a bit and back down so the list notices that the end is visible
+                window.scrollBy(0, -600)
+                await sleep(300)
+                const cells = document.querySelectorAll('[data-testid="cellInnerDiv"]')
+                cells[cells.length - 1]?.scrollIntoView({ block: 'end' })
+                window.scrollTo(0, document.documentElement.scrollHeight)
+
+                const found = await this.waitFor(find, round * 3000)
+                if (found) return found
+            }
+            return null
+        },
+
+        // Opens a tab of the own profile: '' (Posts), '/with_replies' or '/likes'
+        async openProfileTab(suffix) {
+            const href = `/${this.username}${suffix}`.toLowerCase()
+            const find = () => [...document.querySelectorAll('[data-testid="primaryColumn"] [role="tab"], [data-testid="ScrollSnap-List"] a')]
+                .find((a) => a.getAttribute('href')?.toLowerCase() === href)
+            let tab = find()
+            if (!tab) {
+                document.querySelector('[data-testid="AppTabBar_Profile_Link"]')?.click()
+                tab = await this.waitFor(find, 10000)
+            }
+            if (!tab) return false
+            tab.click()
+            window.scrollTo(0, 0)
+            await sleep(2500)
+            return true
+        },
+
+        // Switching to another tab and back makes X fetch the timeline again
+        async reloadTimeline(suffix) {
+            this.log('Reloading the timeline.')
+            await this.openProfileTab(suffix === '' ? '/with_replies' : '')
+            return this.openProfileTab(suffix)
+        },
+
+        // What to do with a Tweet in the current pass: 'delete', 'unretweet', 'unlike' or null to skip it
+        tweetAction(tweet, pass) {
+            if (pass.likes) return tweet.querySelector('[data-testid="unlike"]') ? 'unlike' : null
+            const own = this.isOwnTweet(tweet)
+            if (own !== false) {
+                if (pass.posts && pass.replies) return 'delete'
+                if (pass.replies) return this.isReply(tweet) ? 'delete' : null
+                // Replies are only deleted in the replies pass, and only when they were selected
+                if (pass.posts) return this.isReply(tweet) ? null : 'delete'
+            }
+            if (pass.reposts && tweet.querySelector('[data-testid="unretweet"]')) return 'unretweet'
+            return null
+        },
+
+        async performAction(tweet, action) {
+            if (action === 'unlike') {
+                tweet.querySelector('[data-testid="unlike"]').click()
+                if (!await this.waitFor(() => tweet.querySelector('[data-testid="like"]') || !tweet.isConnected, 5000)) throw new Error('unlike did not work')
+                return true
+            }
+            if (action === 'unretweet') {
+                tweet.querySelector('[data-testid="unretweet"]').click()
+                const confirm = await waitForElemToExist('[data-testid="unretweetConfirm"]', 5000)
+                if (!confirm) throw new Error('undo repost confirmation did not appear')
+                confirm.click()
+                return true
+            }
+            const caret = tweet.querySelector('[data-testid="caret"]')
+            if (!caret) return false
+            caret.click()
+            const menuItem = await waitForElemToExist('[role="menuitem"]', 5000)
+            if (!menuItem) throw new Error('menu did not open')
+            if (menuItem.textContent.includes('@')) {
+                // Not our Tweet (the first item is "Follow/Unfollow @user")
+                caret.click()
+                return false
+            }
+            menuItem.click()
+            const confirm = await waitForElemToExist('[data-testid="confirmationSheetConfirm"]', 5000)
+            if (!confirm) throw new Error('delete confirmation did not appear')
+            confirm.click()
+            return true
+        },
+
+        // Goes through one profile tab and deletes everything selected for it
+        async clearTimeline(pass, counts) {
+            if (!await this.openProfileTab(pass.tab)) {
+                this.log(`Couldn't open the ${pass.name} tab of your profile.`)
+                return
+            }
+            this.log(`Going through the ${pass.name} tab.`)
+
+            // Tweets that were processed or skipped, so we never touch them twice
+            const handledKeys = new Set()
+            const handledElements = new WeakSet()
+            const markHandled = (tweet) => {
+                const key = this.tweetKey(tweet)
+                if (key) handledKeys.add(key)
+                handledElements.add(tweet)
+            }
+            const isHandled = (tweet) => handledElements.has(tweet) || handledKeys.has(this.tweetKey(tweet))
+            const findNext = () => [...document.querySelectorAll('[data-testid="tweet"]')].find((tweet) => {
+                if (isHandled(tweet)) return false
+                if (this.tweetAction(tweet, pass)) return true
+                markHandled(tweet)
+                return false
+            })
+
+            let consecutiveErrors = 0
+            let reloaded = false
+            while (!this.stopRequested) {
+                let tweet = findNext()
+                if (!tweet) {
+                    tweet = await this.loadMore(findNext)
+                    if (!tweet && !reloaded && await this.reloadTimeline(pass.tab)) {
+                        reloaded = true
+                        tweet = findNext() || await this.loadMore(findNext, 3)
+                    }
+                    if (!tweet) break
+                }
+                reloaded = false
+                this.renderProgress()
 
                 // Give the Tweets a chance to load; afaik the limit is 50 requests per minute
                 await sleep(1200)
-                // Hide recommended profiles and stuff
-                document.querySelectorAll('section [data-testid="cellInnerDiv"]>div>div>div, section [data-testid="cellInnerDiv"]>div>div>[role="link"]').forEach((x) => x.remove())
+                if (!tweet.isConnected) continue
+                const action = this.tweetAction(tweet, pass)
+                markHandled(tweet)
+                if (!action) continue
 
                 try {
-                    const tweet = document.querySelector('[data-testid="tweet"]')
-                    if (!tweet) continue
                     tweet.scrollIntoView({ block: 'center' })
-
-                    const unretweet = tweet.querySelector('[data-testid="unretweet"]')
-                    if (unretweet) {
-                        unretweet.click()
-                        const confirm = await waitForElemToExist('[data-testid="unretweetConfirm"]', 5000)
-                        if (!confirm) throw new Error('unretweet confirmation did not appear')
-                        confirm.click()
-                    } else {
-                        const tweetCaret = tweet.querySelector('[data-testid="caret"]')
-                        if (!tweetCaret) {
-                            tweet.remove()
-                            continue
-                        }
-                        tweetCaret.click()
-                        const menuItem = await waitForElemToExist('[role="menuitem"]', 5000)
-                        if (!menuItem) throw new Error('menu did not open')
-
-                        if (menuItem.textContent.includes('@')) {
-                            // Not our Tweet (the first item is "Follow/Unfollow @user"), e.g. the parent in the replies tab
-                            tweetCaret.click()
-                            tweet.remove()
-                            await sleep(300)
-                            continue
-                        }
-                        menuItem.click()
-                        const confirm = await waitForElemToExist('[data-testid="confirmationSheetConfirm"]', 5000)
-                        if (!confirm) throw new Error('delete confirmation did not appear')
-                        confirm.click()
+                    if (await this.performAction(tweet, action)) {
+                        counts[action]++
+                        this.dCount++
+                        this.updateProgressBar()
                     }
-
-                    this.dCount++
-                    if (this.dCount > this.total) this.total = this.dCount
-                    this.updateProgressBar()
                     consecutiveErrors = 0
                 } catch (error) {
-                    this.log(`Error deleting Tweet: ${error.message}`)
-                    if (++consecutiveErrors >= maxConsecutiveErrors) {
-                        this.log(`${consecutiveErrors} consecutive errors. Stopping.`)
-                        break
+                    // Close a menu or dialog that may still be open
+                    document.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
+                    this.failCount++
+                    this.log(`Error: ${error.message}`)
+                    if (++consecutiveErrors >= 5) {
+                        this.log('5 errors in a row. Stopping.')
+                        this.stopRequested = true
+                        this.stopReason = 'Stopped after 5 errors in a row. You may be rate limited; try again later.'
                     }
                 }
             }
+        },
 
-            this.finish(this.stopRequested
-                ? `Stopped. ${formatNumber(this.dCount)} Tweets deleted.`
-                : `Finished. ${formatNumber(this.dCount)} Tweets deleted. Reload the page to confirm.`)
+        async slowDelete() {
+            const types = this.getSelectedTypes()
+            if (this.running || types.size === 0) return
+            this.setBusy(true)
+            this.updateTitle('Deleting without file')
+            await this.tweetCountReady
+            this.username = this.username || this.getUsername()
+            this.startProgress(0)
+
+            const passes = []
+            if (types.has('posts') || types.has('reposts')) {
+                passes.push({ name: 'Posts', tab: '', posts: types.has('posts'), reposts: types.has('reposts') })
+            }
+            if (types.has('replies')) {
+                // Posts are already gone when they were selected too, so everything left that is ours is a reply
+                passes.push({ name: 'Replies', tab: '/with_replies', posts: types.has('posts'), replies: true, reposts: types.has('reposts') })
+            }
+            if (types.has('likes')) passes.push({ name: 'Likes', tab: '/likes', likes: true })
+
+            const counts = { delete: 0, unretweet: 0, unlike: 0 }
+            for (const pass of passes) {
+                if (this.stopRequested) break
+                await this.clearTimeline(pass, counts)
+            }
+
+            const summary = [
+                (types.has('posts') || types.has('replies')) && `${formatNumber(counts.delete)} Tweets deleted`,
+                types.has('reposts') && `${formatNumber(counts.unretweet)} reposts undone`,
+                types.has('likes') && `${formatNumber(counts.unlike)} likes removed`,
+            ].filter(Boolean).join(', ')
+            if (this.stopReason) this.finish(`${this.stopReason} ${summary}.`, 'error')
+            else if (this.stopRequested) this.finish(`Stopped. ${summary}.`, '')
+            else this.finish(`Finished: ${summary}. Nothing more could be loaded; reload the page to confirm.`)
             this.updateTitle('TweetXer')
         },
 
@@ -1025,19 +1206,20 @@
             }
             this.setBusy(true)
             this.updateTitle('Unfollowing everyone')
+            this.startProgress(0)
             followingLink?.click()
             await waitForElemToExist('[data-testid="UserCell"]', 10000)
 
-            let unfollowCount = 0
-            const button = '[data-testid="UserCell"] [data-testid$="-unfollow"]'
+            const attempted = new Set()
+            const userKey = (cell) => cell.querySelector('a[href^="/"]')?.getAttribute('href') || null
+            const findNext = () => [...document.querySelectorAll('[data-testid="UserCell"] [data-testid$="-unfollow"]')]
+                .find((button) => !attempted.has(userKey(button.closest('[data-testid="UserCell"]'))))
+
             while (!this.stopRequested) {
-                let next = document.querySelector(button)
-                if (!next) {
-                    window.scrollTo(0, document.body.scrollHeight)
-                    next = await waitForElemToExist(button, 5000)
-                    if (!next) break
-                }
+                const next = findNext() || await this.loadMore(findNext)
+                if (!next) break
                 const cell = next.closest('[data-testid="UserCell"]')
+                attempted.add(userKey(cell))
                 cell.scrollIntoView({ block: 'center' })
                 next.click()
                 const confirm = await waitForElemToExist('[data-testid="confirmationSheetConfirm"]', 5000)
@@ -1046,13 +1228,12 @@
                     break
                 }
                 confirm.click()
-                cell.remove()
-                unfollowCount++
-                this.updateInfo(`Unfollowed ${formatNumber(unfollowCount)} accounts…`)
+                this.dCount++
+                this.renderProgress()
                 await sleep(200 + Math.floor(Math.random() * 300))
             }
 
-            this.finish(`Unfollowed ${formatNumber(unfollowCount)} accounts. Reload the page to confirm.`)
+            this.finish(`Unfollowed ${formatNumber(this.dCount)} accounts. Reload the page to confirm.`)
             this.updateTitle('TweetXer')
         },
 
